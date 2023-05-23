@@ -1,6 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-
+using System.ComponentModel.DataAnnotations;
 
 namespace AttendanceSystem.Model
 {
@@ -9,27 +9,14 @@ namespace AttendanceSystem.Model
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; }
-
-        [BsonRequired]
-        [BsonRepresentation(BsonType.ObjectId)]
+        [Required]
         public string? UserId { get; set; }
-
-        [BsonRequired]
         public DateTime? PunchInTime { get; set; }
-
-        [BsonIgnoreIfNull]
+        public bool Status { get; set; }
         public double? PunchInLatitude { get; set; }
-
-        [BsonIgnoreIfNull]
         public double? PunchInLongitude { get; set; }
-
-        [BsonIgnoreIfNull]
         public DateTime? PunchOutTime { get; set; }
-
-        [BsonIgnoreIfNull]
         public double? PunchOutLatitude { get; set; }
-
-        [BsonIgnoreIfNull]
         public double? PunchOutLongitude { get; set; }
 
         

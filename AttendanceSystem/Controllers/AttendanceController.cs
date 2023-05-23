@@ -3,6 +3,7 @@ using AttendanceSystem.Model;
 using AttendanceSystem.Models;
 using AttendanceSystem.Settings;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
 [Route("api/[controller]")]
@@ -18,20 +19,31 @@ public class AttendanceController : ControllerBase
 
     }
 
-    [HttpGet]
+    [HttpGet("Status")]
     public async Task<ActionResult<Attendance>> Get()
     {
         var allAttendance = await _attendanceCollection.Find(_ => true).ToListAsync();
+        var attendance = allAttendance.Select(a => new Attendance
+        {
+            UserId = a.Id,
+            PunchInTime = a.PunchInTime,
+            PunchInLatitude = a.PunchInLatitude,
+            PunchInLongitude = a.PunchInLongitude,
+            PunchOutTime = a.PunchInTime,
+            PunchOutLatitude = a.PunchOutLatitude,
+            PunchOutLongitude = a.PunchOutLongitude,
+            Status = (a.PunchInTime!= null && a.PunchOutTime == null )? true : false
+        }).ToList();
         return Ok(new
         {
-            data = allAttendance,
+            data = attendance,
         });
     }
 
     [HttpPost("punchin")]
     public async Task<ActionResult<Attendance>> PunchIn(PunchInModel input)
-    {   
-        if(input.User_id == null)
+    {
+        if (input.User_id == null)
         {
             return BadRequest("User Id is required");
         }
@@ -39,6 +51,7 @@ public class AttendanceController : ControllerBase
         var existingAttendance = await _attendanceCollection.Find(a => a.UserId == input.User_id && a.PunchOutTime == null).FirstOrDefaultAsync();
         if (existingAttendance != null)
             return BadRequest("User is already punched in.");
+
 
         Attendance attendance = new()
         {
@@ -78,13 +91,12 @@ public class AttendanceController : ControllerBase
         return Ok(attendanceList);
     }
 
-    [HttpGet]
-
     public class PunchInModel
     {
         public string? User_id { get; set; }
         public double Longitude { get; set; }
         public double Latitude { get; set; }
+        public bool Status { get; set; }
     }
 
     public class PunchOutModel
@@ -93,5 +105,5 @@ public class AttendanceController : ControllerBase
         public double Longitude { get; set; }
         public double Latitude { get; set; }
     }
-    
+
 }

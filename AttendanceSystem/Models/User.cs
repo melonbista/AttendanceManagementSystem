@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations;
 
 namespace AttendanceSystem.Model
 {
@@ -8,17 +9,15 @@ namespace AttendanceSystem.Model
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; }
-
-        [BsonRequired]
+        [Required]
         public string? Name { get; set; }
-
-        [BsonRequired]
+        [Required]
         public string? Address { get; set; }
-
-        [BsonRequired]
+        [Required]
+        [EmailAddress]
         public string? Email { get; set; }
-
-        [BsonRequired]
+        [Required]
+        [Phone]
         public string? Phone { get; set; }
     }
 }

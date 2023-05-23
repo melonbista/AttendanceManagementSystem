@@ -1,5 +1,4 @@
-﻿using Amazon.Runtime.Internal;
-using AttendanceSystem.Model;
+﻿using AttendanceSystem.Model;
 using AttendanceSystem.Models;
 using AttendanceSystem.Settings;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +17,27 @@ namespace AttendanceSystem.Controllers
         {
             _outletVisitCollection = dbContext.OutletVisits;
             _attendaceCollection = dbContext.Attendances;
+        }
+
+        [HttpGet("Status")]
+        public async Task<ActionResult<OutletVisit>> Get()
+        {
+            var allOutlet = await _outletVisitCollection.Find(_ => true).ToListAsync();
+            var outlet = allOutlet.Select(a => new OutletVisit
+            {
+                UserId = a.Id,
+                CheckInTime = a.CheckInTime,
+                CheckInLatitude = a.CheckInLatitude,
+                CheckInLongitude = a.CheckInLongitude,
+                CheckOutTime = a.CheckInTime,
+                CheckOutLatitude = a.CheckOutLatitude,
+                CheckOutLongitude = a.CheckOutLongitude,
+                Status = (a.CheckInTime != null && a.CheckOutTime == null) ? true : false
+            }).ToList();
+            return Ok(new
+            {
+                data = outlet,
+            });
         }
 
         [HttpPost("checkin")]
