@@ -3,31 +3,34 @@ using AttendanceSystem.Settings;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 
-[Route("api/[controller]")]
-[ApiController]
-public class OutletsController : ControllerBase
+namespace AttendanceSystem.Controllers
 {
-    private readonly IMongoCollection<Outlet> _outletCollection;
-
-    public OutletsController(MongoDbContext dbContext)
+    [Route("api/[controller]")]
+    [ApiController]
+    public class OutletsController : ControllerBase
     {
-        _outletCollection = dbContext.Outlets;
-    }
+        private readonly IMongoCollection<Outlet> _outletCollection;
 
-    [HttpPost]
-    public async Task<ActionResult<Outlet>> CreateOutlet(Outlet outlet)
-    {
-        await _outletCollection.InsertOneAsync(outlet);
-        return CreatedAtAction(nameof(GetOutlet), new { id = outlet.OutletId }, outlet);
-    }
+        public OutletsController(MongoDbContext dbContext)
+        {
+            _outletCollection = dbContext.Outlets;
+        }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Outlet>> GetOutlet(string id)
-    {
-        var outlet = await _outletCollection.Find(o => o.OutletId == id).FirstOrDefaultAsync();
-        if (outlet == null)
-            return NotFound();
+        [HttpPost]
+        public async Task<ActionResult<Outlet>> CreateOutlet(Outlet outlet)
+        {
+            await _outletCollection.InsertOneAsync(outlet);
+            return CreatedAtAction(nameof(GetOutlet), new { id = outlet.OutletId }, outlet);
+        }
 
-        return Ok(outlet);
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Outlet>> GetOutlet(string id)
+        {
+            var outlet = await _outletCollection.Find(o => o.OutletId == id).FirstOrDefaultAsync();
+            if (outlet == null)
+                return NotFound();
+
+            return Ok(outlet);
+        }
     }
 }
