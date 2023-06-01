@@ -1,6 +1,7 @@
 ﻿using AttendanceSystem.Model;
 using AttendanceSystem.Models;
 using AttendanceSystem.Settings;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 
@@ -8,6 +9,7 @@ namespace AttendanceSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class OutletVisitController : ControllerBase
     {
         private readonly IMongoCollection<OutletVisit> _outletVisitCollection;
@@ -86,8 +88,8 @@ namespace AttendanceSystem.Controllers
 
         public class CheckInModel
         {
-            public string User_id { get; set; }
-            public string Outlet_id { get; set; }
+            public string? User_id { get; set; }
+            public string? Outlet_id { get; set; }
             public double Longitude { get; set; }
             public double Latitude { get; set; }
             public bool Status { get; set; }
@@ -95,8 +97,8 @@ namespace AttendanceSystem.Controllers
 
         public class CheckOutModel
         {
-            public string User_id { get; set; }
-            public string Outlet_id { get; set; }
+            public string? User_id { get; set; }
+            public string? Outlet_id { get; set; }
             public double Longitude { get; set; }
             public double Latitude { get; set; }
         }

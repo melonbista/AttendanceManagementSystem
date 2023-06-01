@@ -1,5 +1,6 @@
 ﻿using AttendanceSystem.Model;
 using AttendanceSystem.Settings;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 

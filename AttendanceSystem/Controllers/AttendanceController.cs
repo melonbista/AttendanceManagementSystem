@@ -1,6 +1,7 @@
 ﻿using AttendanceSystem.Model;
 using AttendanceSystem.Models;
 using AttendanceSystem.Settings;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 
@@ -8,6 +9,7 @@ namespace AttendanceSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class AttendanceController : ControllerBase
     {
         private readonly IMongoCollection<Attendance> _attendanceCollection;
@@ -41,6 +43,7 @@ namespace AttendanceSystem.Controllers
         }
 
         [HttpPost("punchin")]
+        [Authorize]
         public async Task<ActionResult<Attendance>> PunchIn(PunchInModel input)
         {
             if (input.User_id == null)
@@ -66,6 +69,7 @@ namespace AttendanceSystem.Controllers
         }
 
         [HttpPost("punchout")]
+        [Authorize]
         public async Task<ActionResult<Attendance>> PunchOut(PunchOutModel input)
         {
             var existingAttendance = _attendanceCollection.Find(a => a.UserId == input.User_id && a.PunchOutTime == null).FirstOrDefault();
