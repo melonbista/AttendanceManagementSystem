@@ -10,27 +10,25 @@ builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("A
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddControllers();
 
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"];
-var issuer = jwtSettings["Issuer"];
-var audience = jwtSettings["Audience"];
-var expirationDays = jwtSettings["ExpirationDays"];
 
-builder.Services.AddAuthentication(options =>
+builder.Services.AddAuthentication(x =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
+    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+
+}).AddJwtBearer(x =>
 {
-    options.TokenValidationParameters = new TokenValidationParameters
+    x.RequireHttpsMetadata = true;
+    x.SaveToken = true;
+    x.TokenValidationParameters = new TokenValidationParameters
     {
+        ValidateIssuerSigningKey = true,
         ValidateIssuer = true,
         ValidateAudience = true,
         ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = issuer,
-        ValidAudience = audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secretKey)),
+        ValidIssuer = "https://localhost:5001",
+        ValidAudience = "https://localhost:5001",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("1swek3u4uo2u4a6e")),
     };
 });
 

@@ -69,7 +69,6 @@ namespace AttendanceSystem.Controllers
         }
 
         [HttpPost("punchout")]
-        [Authorize]
         public async Task<ActionResult<Attendance>> PunchOut(PunchOutModel input)
         {
             var existingAttendance = _attendanceCollection.Find(a => a.UserId == input.User_id && a.PunchOutTime == null).FirstOrDefault();

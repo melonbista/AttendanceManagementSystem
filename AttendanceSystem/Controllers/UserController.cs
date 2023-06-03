@@ -71,7 +71,7 @@ namespace AttendanceSystem.Controllers
 
             var token = GenerateToken(user);
 
-            return Ok(new { Token = token, Message="login Sucessfull" });
+            return Ok(token);
         }
 
         private bool VerifyPassword(string hashedPassword, string password)
@@ -82,28 +82,26 @@ namespace AttendanceSystem.Controllers
 
         private string GenerateToken(User user)
         {
-            string secretKey = "your_secret_key_here";
-
-            var claims = new[]
+            List<Claim> claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Name),
             };
 
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(7),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-                    SecurityAlgorithms.HmacSha256Signature)
-            };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
 
-            var tokenString = tokenHandler.WriteToken(token);
-
-            return tokenString;
-        }
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("1swek3u4uo2u4a6e"));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var token = new JwtSecurityToken(
+                issuer: "https://localhost:5001",
+                audience: "https://localhost:5001",
+                claims: claims,
+                expires: DateTime.Now.AddDays(7),
+                signingCredentials: creds
+                );
+            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+            return jwt;
+                
+         }
         private string HashPassword(string password)
         {
             string salt = BCrypt.Net.BCrypt.GenerateSalt();
