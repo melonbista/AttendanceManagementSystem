@@ -1,5 +1,7 @@
 using AttendanceManagementSystem;
+using AttendanceManagementSystem.Authentication;
 using AttendanceManagementSystem.Helper;
+using AttendanceManagementSystem.Models;
 using AttendanceManagementSystem.Settings;
 using AttendanceSystem.Settings;
 using FluentValidation.AspNetCore;
@@ -92,8 +94,12 @@ builder.Services.AddSingleton(sp =>
     return client.GetDatabase(options.Value.DatabaseName);
 });
 
+builder.Services.AddAuthentication("Basic")
+    .AddScheme<CustomAuthenticationHandler, UserAuthenticationHandler>("Basic", null);
 
 builder.Services.AddSingleton<DbHelper>();
+builder.Services.AddSingleton<AuthHelper>();
+builder.Services.AddSingleton<Order>();
 
 var app = builder.Build();
 

@@ -16,15 +16,17 @@ namespace AttendanceManagementSystem.Controllers
         private readonly IMongoCollection<Attendance> _attendanceCollection;
         private readonly IMongoCollection<OutletVisit> _outletVisitCollection;
         private readonly DbHelper _dbHelper;
-        public AttendanceController(DbHelper dbHelper)
+        private readonly AuthHelper _authHelper;
+        public AttendanceController(DbHelper dbHelper, AuthHelper authHelper)
         {
             _dbHelper = dbHelper;
             _attendanceCollection = _dbHelper.GetCollection<Attendance>();
             _outletVisitCollection = _dbHelper.GetCollection<OutletVisit>();
+            _authHelper = authHelper;
         }
 
         [HttpGet("Status")]
-        public async Task<ActionResult<Attendance>> Get()
+        public async Task<IActionResult> Get()
         {
             var allAttendance = await _attendanceCollection.Find(_ => true).ToListAsync();
             var attendance = allAttendance.Select(a => new Attendance
@@ -45,56 +47,60 @@ namespace AttendanceManagementSystem.Controllers
         }
 
         [HttpPost("punchin")]
-        [Authorize]
         public async Task<IActionResult> PunchIn(PunchInModel input)
         {
-            if (input.User_id == null)
-            {
-                return BadRequest("User Id is required");
-            }
+            AuthHelper.User? authUser = _authHelper.GetUser();
 
-            var filter = Builders<Attendance>.Filter.Eq(x => x.UserId, input.User_id) &
+            var filter = Builders<Attendance>.Filter.Eq(x => x.UserId, authUser?.Id) &
                 Builders<Attendance>.Filter.Eq(x => x.PunchOutTime, null);
 
-            //var existingAttendance = await _attendanceCollection.Find(a => a.UserId == input.User_id && a.PunchOutTime == null).FirstOrDefaultAsync();
             var existingAttendance = await _attendanceCollection.Find(filter).FirstOrDefaultAsync();
             if (existingAttendance != null)
                 return BadRequest("User is already punched in.");
-
 
             Attendance attendance = new()
             {
                 PunchInTime = DateTime.UtcNow,
                 PunchInLatitude = input.Latitude,
                 PunchInLongitude = input.Longitude,
-                UserId = input.User_id
+                UserId = authUser?.Id
             };
 
             await _attendanceCollection.InsertOneAsync(attendance);
-            return Ok(attendance);
+            return Ok();
         }
 
         [HttpPost("punchout")]
-        public async Task<ActionResult<Attendance>> PunchOut(PunchOutModel input)
+        public async Task<IActionResult> PunchOut(PunchOutModel input)
         {
-            var existingAttendance = _attendanceCollection.Find(a => a.UserId == input.User_id && a.PunchOutTime == null).FirstOrDefault();
+            AuthHelper.User? authUser = _authHelper.GetUser();
+
+            var attendanceFilter = AttendanceHelper.CurrentFilter(authUser?.Id);
+
+            var outletVisitFilter = OutletVisitHelper.CurrentFilter(authUser?.Id);
+
+            var existingAttendance = await _attendanceCollection.Find(attendanceFilter).FirstOrDefaultAsync();
             if (existingAttendance == null)
-                return BadRequest("User is not punched in.");
+                return BadRequest("User is not checkout of an outlet.");
 
-            var existingVisit = await _outletVisitCollection.Find(v => v.UserId == input.User_id && v.CheckInTime != null && v.CheckOutTime == null).FirstOrDefaultAsync();
-            if (existingVisit != null)
+            var existingOutletVisit = await _outletVisitCollection.Find(outletVisitFilter).FirstOrDefaultAsync();
+            if (existingOutletVisit == null)
+            {
                 return BadRequest("User is currently checked in to an outlet.");
+            }
 
-            existingAttendance.PunchOutTime = DateTime.UtcNow;
-            existingAttendance.PunchOutLatitude = input.Latitude;
-            existingAttendance.PunchOutLongitude = input.Longitude;
+            var update = Builders<Attendance>.Update
+                .Set(x => x.PunchOutTime, DateTime.UtcNow)
+                .Set(x => x.PunchInLatitude, input.Latitude)
+                .Set(x => x.PunchOutLongitude, input.Longitude);
 
-            await _attendanceCollection.ReplaceOneAsync(a => a.Id == existingAttendance.Id, existingAttendance);
+            await _attendanceCollection.UpdateOneAsync(attendanceFilter, update);
+
             return Ok();
         }
 
         [HttpGet("user/{userId}")]
-        public async Task<ActionResult<Attendance>> GetAttendance(string userId)
+        public async Task<IActionResult> GetAttendance(string userId)
         {
             var attendanceList = await _attendanceCollection.Find(a => a.UserId == userId).ToListAsync();
             return Ok(attendanceList);
@@ -102,7 +108,6 @@ namespace AttendanceManagementSystem.Controllers
 
         public class BaseInputModel
         {
-            public string? User_id { get; set; }
             public double Longitude { get; set; }
             public double Latitude { get; set; }
         }

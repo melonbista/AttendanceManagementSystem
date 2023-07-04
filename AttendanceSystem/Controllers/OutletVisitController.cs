@@ -14,12 +14,14 @@ namespace AttendanceManagementSystem.Controllers
     public class OutletVisitController : ControllerBase
     {
         private readonly DbHelper _dbHelper;
+        private readonly AuthHelper _authHelper;
         private readonly IMongoCollection<OutletVisit> _outletVisitCollection;
         private readonly IMongoCollection<Attendance> _attendaceCollection;
 
-        public OutletVisitController(DbHelper dbHelper)
+        public OutletVisitController(DbHelper dbHelper,AuthHelper authHelper)
         {
             _dbHelper = dbHelper;
+            _authHelper = authHelper;
             _outletVisitCollection = _dbHelper.GetCollection<OutletVisit>();
             _attendaceCollection = _dbHelper.GetCollection<Attendance>();
         }
@@ -46,58 +48,92 @@ namespace AttendanceManagementSystem.Controllers
         }
 
         [HttpPost("checkin")]
-        public async Task<ActionResult<OutletVisit>> CheckIn(CheckInModel input)
+        public async Task<IActionResult> CheckIn(CheckInModel input)
         {
-            var existingAttendance = await _attendaceCollection.Find(a => a.UserId == input.User_id && a.PunchInTime != null && a.PunchOutTime == null).FirstOrDefaultAsync();
-            if (existingAttendance == null)
-                return BadRequest("User is not punched in.");
+            AuthHelper.User? authUser = _authHelper.GetUser();
 
-            var existingVisit = await _outletVisitCollection.Find(v => v.UserId == input.User_id && v.CheckOutTime == null).FirstOrDefaultAsync();
+            //var punchFilter = AttendanceHelper.CurrentFilter(authUser?.Id);
+
+            var punchInFilter = Builders<Attendance>.Filter.Eq(x => x.UserId, authUser?.Id) &
+                Builders<Attendance>.Filter.Eq(x => x.PunchOutTime, null) &
+                Builders<Attendance>.Filter.Ne(x => x.PunchInTime, null);
+
+            var checkFilter = Builders<OutletVisit>.Filter.Eq(x => x.UserId, authUser?.Id) &
+                Builders<OutletVisit>.Filter.Eq(x => x.OutletId, input.OutletId) &
+                Builders<OutletVisit>.Filter.Eq(x => x.CheckOutTime, null);
+
+            var existingAttendance = await _attendaceCollection.Find(punchInFilter).FirstOrDefaultAsync();
+            if (existingAttendance == null)
+            {
+                return BadRequest("User is not punch in.");
+            }
+
+            var existingVisit = await _outletVisitCollection.Find(checkFilter).FirstOrDefaultAsync();
             if (existingVisit != null)
+            {
                 return BadRequest("User is already checked in.");
+            }
 
             OutletVisit outletVisit = new()
             {
-                UserId = input.User_id,
-                OutletId = input.Outlet_id,
+                OutletId = input.OutletId,
                 CheckInTime = DateTime.UtcNow,
                 CheckInLatitude = input.Latitude,
                 CheckInLongitude = input.Longitude
             };
 
             await _outletVisitCollection.InsertOneAsync(outletVisit);
-            return Ok(outletVisit);
+            return Ok();
         }
 
         [HttpPost("checkout")]
-        public async Task<ActionResult<OutletVisit>> CheckOut(CheckOutModel input)
+        public async Task<IActionResult> CheckOut(CheckOutModel input)
         {
-            var existingAttendance = await _attendaceCollection.Find(a => a.UserId == input.User_id && a.PunchInTime != null && a.PunchOutTime == null).FirstOrDefaultAsync();
-            if (existingAttendance == null)
-                return BadRequest("User is not punched in.");
+            AuthHelper.User? authUser = _authHelper.GetUser();
 
-            var existingVisit = await _outletVisitCollection.Find(v => v.UserId == input.User_id && v.OutletId == input.Outlet_id && v.CheckOutTime == null).FirstOrDefaultAsync();
+            var punchInFilter = Builders<Attendance>.Filter.Eq(x => x.UserId, authUser?.Id) &
+                Builders<Attendance>.Filter.Eq(x => x.PunchOutTime, null) &
+                Builders<Attendance>.Filter.Ne(x => x.PunchInTime, null);
+
+            var checkFilter = Builders<OutletVisit>.Filter.Eq(x => x.UserId, authUser?.Id) &
+                Builders<OutletVisit>.Filter.Eq(x => x.OutletId, input.OutletId) &
+                Builders<OutletVisit>.Filter.Eq(x => x.CheckOutTime, null);
+
+            var existingAttendance = await _attendaceCollection.Find(punchInFilter).FirstOrDefaultAsync();
+            if(existingAttendance == null)
+            {
+                return BadRequest("User is not punch in");
+            }
+
+            var existingVisit = await _outletVisitCollection.Find(checkFilter).FirstOrDefaultAsync();
             if (existingVisit == null)
+            {
                 return BadRequest("User is not checked in at the specified outlet.");
+            }
 
+           
 
-            existingVisit.CheckOutTime = DateTime.UtcNow;
-            existingVisit.CheckOutLatitude = input.Latitude;
-            existingVisit.CheckOutLongitude = input.Longitude;
+            OutletVisit outletVisit = new()
+            {
+                UserId = authUser?.Id,
+                CheckOutTime = DateTime.UtcNow,
+                CheckOutLatitude = input.Latitude,
+                CheckOutLongitude = input.Longitude,
+            };
 
-            _outletVisitCollection.ReplaceOne(v => v.Id == existingVisit.Id, existingVisit);
-            return Ok(existingVisit);
+            await _outletVisitCollection.ReplaceOneAsync(x => x.Id == existingVisit.UserId, outletVisit);
+            return Ok();
         }
 
         public class BaseInputModel
         {
-            public string? Outlet_id { get; set; }
-            public string? User_id { get; set; }
+            public string OutletId { get; set; }
             public double Longitude { get; set; }
             public double Latitude { get; set; }
         }
 
-        public class CheckInModel : BaseInputModel { }
+        public class CheckInModel : BaseInputModel { 
+        }
 
         public class CheckOutModel : BaseInputModel { }
 
@@ -107,8 +143,10 @@ namespace AttendanceManagementSystem.Controllers
             {
                 RuleFor(x => x.Longitude).MustBeLongitude();
                 RuleFor(x => x.Latitude).MustBeLatitude();
+                RuleFor(x=>x.OutletId).NotEmpty();
             }
         }
+
         public class CheckOutValidator : AbstractValidator<CheckOutModel>
         {
             public CheckOutValidator()

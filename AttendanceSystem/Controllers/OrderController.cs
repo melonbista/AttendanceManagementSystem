@@ -14,7 +14,7 @@ namespace AttendanceManagementSystem.Controllers
         private readonly IMongoCollection<Attendance> _attendanceCollection;
         private readonly IMongoCollection<OutletVisit> _outletVisitCollection;
 
-        public OrderController(DbHelper dbHelper, Order order)
+        public OrderController(DbHelper dbHelper)
         {
             _dbHelper = dbHelper;
             _orderCollection = _dbHelper.GetCollection<Order>();
@@ -35,8 +35,7 @@ namespace AttendanceManagementSystem.Controllers
                 Products = a.Products,
                 ProductCount = a.ProductCount,
                 TotalAmount = a.TotalAmount,
-                IsShipped = a.IsShipped != null ? true : false,
-            }).ToList();
+            }).ToList(); 
 
             return Ok(new
             {
@@ -51,14 +50,14 @@ namespace AttendanceManagementSystem.Controllers
                 Builders<Attendance>.Filter.Eq(x => x.PunchOutTime, null);
             var checkInFilter = Builders<OutletVisit>.Filter.Eq(x => x.CheckOutTime, null) &
                 Builders<OutletVisit>.Filter.Ne(x => x.CheckInTime, null);
-
+            var isOnCallFilter = Builders<Order>.Filter.Eq(x => x.IsOnCall, true);
 
             var isPunchIn = await _attendanceCollection.Find(punchInFilter).FirstOrDefaultAsync();
             if (isPunchIn == null)
             {
                 return BadRequest("User is not punched in");
             }
-            
+
             var isCheckIn = await _outletVisitCollection.Find(checkInFilter).FirstOrDefaultAsync();
             if (isCheckIn == null)
             {
@@ -67,8 +66,13 @@ namespace AttendanceManagementSystem.Controllers
 
             Order order = new()
             {
-
+               Quantity = input.Quantity,
+               IsOnCall = false,
+               OutletId = input.OutletId,
             };
+
+            await _orderCollection.InsertOneAsync(order);
+            return Ok();
         }
 
         public IEnumerable<ProductInputModel> Products { get; set; } = new List<ProductInputModel>();

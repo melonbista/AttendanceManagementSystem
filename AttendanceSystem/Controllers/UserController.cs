@@ -1,12 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using FluentValidation;
 using AttendanceManagementSystem.Models;
-using AttendanceManagementSystem.Models.Dto;
 using AttendanceManagementSystem.Extension;
 using AttendanceManagementSystem.Helper;
 
@@ -27,14 +22,6 @@ namespace AttendanceManagementSystem.Controllers
         [HttpPost("register")]
         public IActionResult RegisterUser(RegisterRequest request)
         {
-            Console.WriteLine("BEfore");
-            //if (!ModelState.IsValid)
-            //{
-            //    Console.WriteLine("after 123");
-
-            //    return BadRequest("Invalid request data");
-            //}
-            Console.WriteLine("after");
 
             if (_userCollection.Find(u => u.Email == request.Email).Any())
             {
@@ -61,57 +48,52 @@ namespace AttendanceManagementSystem.Controllers
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
+            var emailFilter = Builders<User>.Filter.Eq(x => x.Email, request.Email);
+            var isActiveFilter = Builders<User>.Filter.Eq(x => x.IsActive, true);
 
-            if (!ModelState.IsValid)
+            var user = await _userCollection
+                .Find(emailFilter)
+                .Project(x => new {
+                    Id = x.Id,
+                    Email = x.Email,
+                    Password = x.Password
+                })
+                .FirstOrDefaultAsync();
+
+            if (user is null)
             {
-                return BadRequest("Invalid request data");
+                return Unauthorized("user is null");
             }
 
-            var user = _userCollection.Find(u => u.Email == request.Email).FirstOrDefault();
-
-            if (user == null || !VerifyPassword(user.Password, request.Password))
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
             {
-                return Unauthorized("Invalid email or password");
+                return Unauthorized();
             }
+            string token = JwtTokenHelper.GenerateToken(user.Id, user.Email);
 
-            var token = GenerateToken(user);
+            var filter = Builders<User>.Filter.Eq(x => x.Id, user.Id);
+
+            var update = Builders<User>.Update
+                .Set(x => x.Token, token)
+                .Set(x => x.UpdatedAt, DateTime.UtcNow);
+
+            AuthHelper.User authUser = new AuthHelper.User
+            {
+                Id = user.Id,
+                Email = user.Email,
+            };
+
+            await _userCollection.UpdateOneAsync(filter, update);
+
 
             return Ok(new
             {
                 Token = token,
             });
         }
-
-        private bool VerifyPassword(string hashedPassword, string password)
-        {
-
-            return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
-        }
-
-        private string GenerateToken(User user)
-        {
-            List<Claim> claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Name),
-            };
-
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("1swek3u4uo2u4a6e"));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var token = new JwtSecurityToken(
-                issuer: "https://localhost:5001",
-                audience: "https://localhost:5001",
-                claims: claims,
-                expires: DateTime.Now.AddDays(7),
-                signingCredentials: creds
-                );
-            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-            return jwt;
-
-        }
+   
         private string HashPassword(string password)
         {
             string salt = BCrypt.Net.BCrypt.GenerateSalt();
@@ -123,23 +105,37 @@ namespace AttendanceManagementSystem.Controllers
 
         public class BaseInputModel
         {
-            public string? Name { get; set; }
-            public string? Address { get; set; }
             public string? Email { get; set; }
-            public string? Phone { get; set; }
             public string? Password { get; set; }
         }
 
-        public class RegisterRequest : BaseInputModel { }
+        public class LoginRequest : BaseInputModel { }
 
-        public class UserValidator : AbstractValidator<RegisterRequest>
+        public class RegisterRequest : BaseInputModel {
+            public string? Name { get; set; }
+            public string? Address { get; set; }
+            public string? Phone { get; set; }
+        }
+
+        public class LoginRequestValidator : AbstractValidator<LoginRequest>
         {
-            public UserValidator()
+            public LoginRequestValidator()
             {
-                RuleFor(x => x.Phone).MustBeNumber(10).NotEmpty();
-                RuleFor(x => x.Email).EmailAddress().NotEmpty();
-                RuleFor(x => x.Name).NotEmpty();
-                RuleFor(x => x.Password).NotEmpty();
+                RuleFor(x => x.Email).NotEmpty();
+                RuleFor(x=>x.Password).NotEmpty();
+            }
+        }
+
+        public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
+        {
+            public RegisterRequestValidator(DbHelper dbHelper,AuthHelper authHelper)
+            {
+                AuthHelper.User? authUser = authHelper.GetUser();
+
+                RuleFor(x => x.Email).EmailAddress()
+                    .MustBeUnique(dbHelper, x => x.Email, Builders<User>.Filter.Ne(x => x.Id, authUser?.Id))
+                    .Unless(x=>string.IsNullOrEmpty(x.Email));
+
             }
         }
     }

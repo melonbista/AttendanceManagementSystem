@@ -3,12 +3,8 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace AttendanceManagementSystem.Models
 {
-    public class Outlet
+    public class Outlet : BaseModel
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string? OutletId { get; set; }
-
         [BsonElement("name")]
         public string? Name { get; set; }
 
@@ -29,8 +25,5 @@ namespace AttendanceManagementSystem.Models
 
         [BsonElement("longitude")]
         public double? Longitude { get; set; }
-
-        [BsonElement("user_id")]
-        public string? UserId { get; set; }
     }
 }

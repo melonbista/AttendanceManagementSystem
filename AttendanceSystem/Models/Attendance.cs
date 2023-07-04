@@ -4,11 +4,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AttendanceManagementSystem.Models
 {
-    public class Attendance
+    public class Attendance : BaseModel
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string? Id { get; set; }
         public string? UserId { get; set; }
         public DateTime? PunchInTime { get; set; }
         public bool Status { get; set; }
@@ -17,7 +14,5 @@ namespace AttendanceManagementSystem.Models
         public DateTime? PunchOutTime { get; set; }
         public double? PunchOutLatitude { get; set; }
         public double? PunchOutLongitude { get; set; }
-
-
     }
 }

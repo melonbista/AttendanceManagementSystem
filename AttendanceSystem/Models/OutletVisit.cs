@@ -4,14 +4,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AttendanceManagementSystem.Models
 {
-    public class OutletVisit
+    public class OutletVisit : BaseModel
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string? Id { get; set; }
-        [Required]
         public string? OutletId { get; set; }
-        [Required]
         public string? UserId { get; set; }
         public bool Status { get; set; }
         public DateTime? CheckInTime { get; set; }
