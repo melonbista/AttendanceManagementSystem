@@ -1,32 +1,40 @@
-﻿using AttendanceSystem.Model;
-using AttendanceSystem.Models.Dto;
-using AttendanceSystem.Settings;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using FluentValidation;
+using AttendanceManagementSystem.Models;
+using AttendanceManagementSystem.Models.Dto;
+using AttendanceManagementSystem.Extension;
+using AttendanceManagementSystem.Helper;
 
-namespace AttendanceSystem.Controllers
+namespace AttendanceManagementSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
     {
+        private readonly DbHelper _dbHelper;
         private readonly IMongoCollection<User> _userCollection;
-        public UsersController(MongoDbContext dbContext)
+        public UsersController(DbHelper dbContext)
         {
-            _userCollection = dbContext.Users;
+            _dbHelper = dbContext;
+            _userCollection = _dbHelper.GetCollection<User>();
         }
 
         [HttpPost("register")]
-        public IActionResult RegisterUser([FromBody] RegisterRequest request)
+        public IActionResult RegisterUser(RegisterRequest request)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest("Invalid request data");
-            }
+            Console.WriteLine("BEfore");
+            //if (!ModelState.IsValid)
+            //{
+            //    Console.WriteLine("after 123");
+
+            //    return BadRequest("Invalid request data");
+            //}
+            Console.WriteLine("after");
 
             if (_userCollection.Find(u => u.Email == request.Email).Any())
             {
@@ -52,7 +60,6 @@ namespace AttendanceSystem.Controllers
             return Ok(new { Message = "User registered successfully" });
         }
 
-
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
@@ -71,7 +78,10 @@ namespace AttendanceSystem.Controllers
 
             var token = GenerateToken(user);
 
-            return Ok(token);
+            return Ok(new
+            {
+                Token = token,
+            });
         }
 
         private bool VerifyPassword(string hashedPassword, string password)
@@ -100,8 +110,8 @@ namespace AttendanceSystem.Controllers
                 );
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
             return jwt;
-                
-         }
+
+        }
         private string HashPassword(string password)
         {
             string salt = BCrypt.Net.BCrypt.GenerateSalt();
@@ -109,6 +119,28 @@ namespace AttendanceSystem.Controllers
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(password, salt);
 
             return hashedPassword;
+        }
+
+        public class BaseInputModel
+        {
+            public string? Name { get; set; }
+            public string? Address { get; set; }
+            public string? Email { get; set; }
+            public string? Phone { get; set; }
+            public string? Password { get; set; }
+        }
+
+        public class RegisterRequest : BaseInputModel { }
+
+        public class UserValidator : AbstractValidator<RegisterRequest>
+        {
+            public UserValidator()
+            {
+                RuleFor(x => x.Phone).MustBeNumber(10).NotEmpty();
+                RuleFor(x => x.Email).EmailAddress().NotEmpty();
+                RuleFor(x => x.Name).NotEmpty();
+                RuleFor(x => x.Password).NotEmpty();
+            }
         }
     }
 }

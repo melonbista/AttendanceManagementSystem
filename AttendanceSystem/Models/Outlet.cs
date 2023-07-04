@@ -1,27 +1,36 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using System.ComponentModel.DataAnnotations;
 
-namespace AttendanceSystem.Model
+namespace AttendanceManagementSystem.Models
 {
     public class Outlet
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? OutletId { get; set; }
-        [Required]
+
+        [BsonElement("name")]
         public string? Name { get; set; }
-        [Required]
+
+        [BsonElement("address")]
         public string? Address { get; set; }
-        [EmailAddress]
+
+        [BsonElement("owner_email")]
         public string? OwnerEmail { get; set; }
-        [EmailAddress]
+
+        [BsonElement("owner_phone")]
         public string? OwnerPhone { get; set; }
-        [Phone]
+
+        [BsonElement("outlet_phone")]
         public string? OutletPhone { get; set; }
+
+        [BsonElement("latitude")]
         public double? Latitude { get; set; }
+
+        [BsonElement("longitude")]
         public double? Longitude { get; set; }
-        [Required]
+
+        [BsonElement("user_id")]
         public string? UserId { get; set; }
     }
 }

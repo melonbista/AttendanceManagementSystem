@@ -2,7 +2,7 @@
 using MongoDB.Bson.Serialization.Attributes;
 using System.ComponentModel.DataAnnotations;
 
-namespace AttendanceSystem.Models
+namespace AttendanceManagementSystem.Models
 {
     public class OutletVisit
     {

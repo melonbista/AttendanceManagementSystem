@@ -1,20 +1,23 @@
-﻿using AttendanceSystem.Model;
-using AttendanceSystem.Settings;
-using Microsoft.AspNetCore.Authorization;
+﻿using AttendanceManagementSystem.Extension;
+using AttendanceManagementSystem.Helper;
+using AttendanceManagementSystem.Models;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 
-namespace AttendanceSystem.Controllers
+namespace AttendanceManagementSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class OutletsController : ControllerBase
     {
         private readonly IMongoCollection<Outlet> _outletCollection;
+        private readonly DbHelper _dbHelper;
 
-        public OutletsController(MongoDbContext dbContext)
+        public OutletsController(DbHelper dbHelper)
         {
-            _outletCollection = dbContext.Outlets;
+            _dbHelper = dbHelper;
+            _outletCollection = _dbHelper.GetCollection<Outlet>();
         }
 
         [HttpPost]
@@ -32,6 +35,19 @@ namespace AttendanceSystem.Controllers
                 return NotFound();
 
             return Ok(outlet);
+        }
+
+        public class OutletValidator : AbstractValidator<Outlet>
+        {
+            public OutletValidator()
+            {
+                RuleFor(x => x.Name).NotEmpty();
+                RuleFor(x => x.Address).NotEmpty();
+                RuleFor(x => x.OwnerEmail).EmailAddress().NotEmpty();
+                RuleFor(x => x.OwnerPhone).MustBeNumber(10).NotEmpty();
+                RuleFor(x => x.OutletPhone).MustBeNumber(10).NotEmpty();
+                RuleFor(x => x.UserId).NotEmpty();
+            }
         }
     }
 }

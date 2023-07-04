@@ -1,11 +1,12 @@
-﻿using AttendanceSystem.Model;
-using AttendanceSystem.Models;
-using AttendanceSystem.Settings;
+﻿using AttendanceManagementSystem.Extension;
+using AttendanceManagementSystem.Helper;
+using AttendanceManagementSystem.Models;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 
-namespace AttendanceSystem.Controllers
+namespace AttendanceManagementSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -14,11 +15,12 @@ namespace AttendanceSystem.Controllers
     {
         private readonly IMongoCollection<Attendance> _attendanceCollection;
         private readonly IMongoCollection<OutletVisit> _outletVisitCollection;
-        public AttendanceController(MongoDbContext dbContext)
+        private readonly DbHelper _dbHelper;
+        public AttendanceController(DbHelper dbHelper)
         {
-            _attendanceCollection = dbContext.Attendances;
-            _outletVisitCollection = dbContext.OutletVisits;
-
+            _dbHelper = dbHelper;
+            _attendanceCollection = _dbHelper.GetCollection<Attendance>();
+            _outletVisitCollection = _dbHelper.GetCollection<OutletVisit>();
         }
 
         [HttpGet("Status")]
@@ -34,7 +36,7 @@ namespace AttendanceSystem.Controllers
                 PunchOutTime = a.PunchInTime,
                 PunchOutLatitude = a.PunchOutLatitude,
                 PunchOutLongitude = a.PunchOutLongitude,
-                Status = (a.PunchInTime != null && a.PunchOutTime == null) ? true : false
+                Status = a.PunchInTime != null && a.PunchOutTime == null ? true : false
             }).ToList();
             return Ok(new
             {
@@ -44,14 +46,18 @@ namespace AttendanceSystem.Controllers
 
         [HttpPost("punchin")]
         [Authorize]
-        public async Task<ActionResult<Attendance>> PunchIn(PunchInModel input)
+        public async Task<IActionResult> PunchIn(PunchInModel input)
         {
             if (input.User_id == null)
             {
                 return BadRequest("User Id is required");
             }
 
-            var existingAttendance = await _attendanceCollection.Find(a => a.UserId == input.User_id && a.PunchOutTime == null).FirstOrDefaultAsync();
+            var filter = Builders<Attendance>.Filter.Eq(x => x.UserId, input.User_id) &
+                Builders<Attendance>.Filter.Eq(x => x.PunchOutTime, null);
+
+            //var existingAttendance = await _attendanceCollection.Find(a => a.UserId == input.User_id && a.PunchOutTime == null).FirstOrDefaultAsync();
+            var existingAttendance = await _attendanceCollection.Find(filter).FirstOrDefaultAsync();
             if (existingAttendance != null)
                 return BadRequest("User is already punched in.");
 
@@ -94,20 +100,33 @@ namespace AttendanceSystem.Controllers
             return Ok(attendanceList);
         }
 
-        public class PunchInModel
-        {
-            public string? User_id { get; set; }
-            public double Longitude { get; set; }
-            public double Latitude { get; set; }
-            public bool Status { get; set; }
-        }
-
-        public class PunchOutModel
+        public class BaseInputModel
         {
             public string? User_id { get; set; }
             public double Longitude { get; set; }
             public double Latitude { get; set; }
         }
 
+        public class PunchInModel : BaseInputModel { }
+
+        public class PunchOutModel : BaseInputModel { }
+
+        public class PunchInInputModelValidator : AbstractValidator<PunchInModel>
+        {
+            public PunchInInputModelValidator()
+            {
+                RuleFor(x => x.Longitude).MustBeLongitude();
+                RuleFor(x => x.Latitude).MustBeLatitude();
+            }
+        }
+
+        public class PunchOutModelValidator : AbstractValidator<PunchOutModel>
+        {
+            public PunchOutModelValidator()
+            {
+                RuleFor(x => x.Longitude).MustBeLongitude();
+                RuleFor(x => x.Latitude).MustBeLatitude();
+            }
+        }
     }
 }

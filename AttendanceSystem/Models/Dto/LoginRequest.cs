@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace AttendanceSystem.Models.Dto
+namespace AttendanceManagementSystem.Models.Dto
 {
     public class LoginRequest
     {
